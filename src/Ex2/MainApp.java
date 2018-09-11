@@ -8,7 +8,7 @@ import javafx.stage.Stage;
 
 public class MainApp extends Application {
     private final int width = 1070;
-    private final int height = 800;
+    private final int height = 700;
 
     public static void main(String[] args) {
         launch(args);

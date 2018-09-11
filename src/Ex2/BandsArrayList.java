@@ -35,7 +35,7 @@ public class BandsArrayList<Band> implements List<Band>{
 
         // overflow-conscious code
 
-        int oldCapacity = arr.length;
+        int oldCapacity = arr.length+1; // if capacity is 0 >>> 1
         int newCapacity = oldCapacity + (oldCapacity >> 1);
 
         if (newCapacity - minCapacity < 0)
@@ -290,7 +290,7 @@ public class BandsArrayList<Band> implements List<Band>{
         if (o != null)
             for(int i = 0; i < arr.length; i++){
                 if( o.equals(get(i))){
-                    System.arraycopy(arr, i, arr, i - 1, size - i);
+                    System.arraycopy(arr, i + 1, arr, i, size - i);
                     return true;
                 }
             }
@@ -301,7 +301,7 @@ public class BandsArrayList<Band> implements List<Band>{
     public Band remove(int index) {
         rangeCheckForAdd(index);
         Band valueRemoved = arr[index];
-        System.arraycopy(arr, index, arr, index - 1, size - index);
+        System.arraycopy(arr, index+1, arr, index, size - index);
         --size;
         return valueRemoved;
     }

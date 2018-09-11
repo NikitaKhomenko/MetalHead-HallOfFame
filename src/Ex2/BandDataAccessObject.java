@@ -1,6 +1,7 @@
 package Ex2;
 
 import java.io.*;
+import java.util.Collections;
 
 public class BandDataAccessObject implements BandDataAccess {
 
@@ -20,12 +21,11 @@ public class BandDataAccessObject implements BandDataAccess {
 
     @Override
     public BandsArrayList readAllBands() throws IOException, ClassNotFoundException {
-        Band[] BandsArr = new Band[20];
-        BandsArrayList<Band> bandsList = new BandsArrayList<>(BandsArr);
+        Band[] temp = new Band[0];
+        BandsArrayList<Band> bandsList = new BandsArrayList<>(temp);
         try {
-            input = new ObjectInputStream(new FileInputStream(fileName));
-            while(input.available() > 0) // check if the file stream is at the end
-                bandsList.add((Band) input.readObject());
+            Band[] bands = readBandsArrayFromFile();
+            Collections.addAll(bandsList, bands);
 
         } catch (IOException e) {
             System.out.println("Error reading saving data.");
@@ -42,8 +42,9 @@ public class BandDataAccessObject implements BandDataAccess {
     public BandsHashMap getBandsMappedByName() throws IOException, ClassNotFoundException {
         BandsHashMap<String,Band> BandsMap = new BandsHashMap<>();
         try {
-            input = new ObjectInputStream(new FileInputStream(fileName));
-            BandsMap = ReadBandsToMap(BandsMap);
+            Band[] bands = readBandsArrayFromFile();
+            for (int i = 0; i < bands.length; i++)
+                BandsMap.put(bands[i].getName(), bands[i]);
 
         } catch (IOException e) {
             System.out.println("Error reading saving data.");
@@ -55,13 +56,12 @@ public class BandDataAccessObject implements BandDataAccess {
         return BandsMap;
     }
 
-    private BandsHashMap ReadBandsToMap(BandsHashMap BandsMap) throws IOException, ClassNotFoundException {
-        while(input.available() > 0) // check if the file stream is at the end
-        {
-            Band band = (Band) input.readObject();
-            BandsMap.put(band.getName(), band);
-        }
-        return BandsMap;
+    private Band[] readBandsArrayFromFile() throws IOException, ClassNotFoundException {
+        input = new ObjectInputStream(new FileInputStream(fileName));
+        FileInputStream inputFile = new FileInputStream(fileName);
+        input = new ObjectInputStream(inputFile);
+        Object[] bandscheck = (Object[]) input.readObject();
+        return (Band[]) bandscheck;
     }
 
     @Override

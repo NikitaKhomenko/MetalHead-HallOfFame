@@ -35,7 +35,9 @@ public class BandsDataControllerImpl implements  BandsDataController {
 
     private void setBandsList() throws IOException, ClassNotFoundException {
         BandsList = BandsListRevert = BandDAO.readAllBands();
-        quickSort(BandsList, 0, BandsList.size(), serialNumComparator);
+        Band[] bands = BandsList.toArray();
+        quickSort(bands, 0, bands.length-1, serialNumComparator);
+        BandsList = BandsListRevert = new BandsArrayList<>(bands);
     }
 
     private void setBandsMap() throws IOException, ClassNotFoundException {
@@ -48,6 +50,10 @@ public class BandsDataControllerImpl implements  BandsDataController {
 
     // previous/next logic - on regular call returns desired Band and calls execute which pushes this command into the commands stack.
     // if called from undo program will pop last command from stack so there's no need to push this one in. just jumps to return.
+
+    public Band CurrentBand() {
+        return BListIterator.getCurrent();
+    }
 
     @Override
     public Band previous(boolean calledFromUndo) {
@@ -120,12 +126,16 @@ public class BandsDataControllerImpl implements  BandsDataController {
 
         @Override
         public void execute() {
-            quickSort(BandsList, 0, BandsList.size(), comparator);
+            Band[] bands = BandsList.toArray();
+            quickSort(bands, 0, bands.length-1, comparator);
+            BandsList = new BandsArrayList<>(bands);
         }
 
         @Override
         public void undo() {
-            quickSort(BandsList, 0, BandsList.size(), serialNumComparator);
+            Band[] bands = BandsList.toArray();
+            quickSort(bands, 0, bands.length-1, serialNumComparator);
+            BandsList = new BandsArrayList<>(bands);
         }
     }
 
@@ -241,45 +251,54 @@ public class BandsDataControllerImpl implements  BandsDataController {
 
         @Override
         public int compare(Band b1, Band b2) {
-            return b1.getSerialNumber() - b2.getSerialNumber();
+            return b1.getSerialNumber() - b2.getSerialNumber() ;
         }
     };
 
+    public Comparator<Band> getNameComparator(){
+        return nameComparator;
+    }
+
+    public Comparator<Band> getOriginComparator(){
+        return originComparator;
+    }
+
+    public Comparator<Band> getFansComparator(){
+        return fansComparator;
+    }
+
+    public Comparator<Band> getSerialNumComparator(){
+        return serialNumComparator;
+    }
+
     ///////////////////////////*************  Helper functions  **************///////////////////////////
 
-    int partition(BandsArrayList<Band> arr, int low, int high, Comparator<Band> comparator) {
-        Band pivot = arr.get(high);
-        int i = (low - 1); // index of smaller element
-        for (int j = low; j < high; j++) {
+    int partition(Band[] arr, int low, int high, Comparator<Band> comparator) {
+        Band pivot = arr[high];
+        int i = (low-1); // index of smaller element
+        for (int j = low; j < high ; j++) {
 
-            if (comparator.compare(arr.get(j), pivot) <= 0) {
+            if (comparator.compare(arr[j], pivot) <= 0) {
                 i++;
 
                 // swap arr[i] and arr[j]
-                Band temp_i = arr.get(i);
-                Band temp_j = arr.get(j);
 
-                arr.remove(i);
-                arr.add(i , temp_j);
-                arr.remove(j);
-                arr.add(j , temp_i);
+                Band temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
             }
         }
         // swap arr[i+1] and arr[high] (or pivot)
-        Band temp_i = arr.get(i + 1);
-        Band temp_high = arr.get(high);
-
-        arr.remove(i + 1);
-        arr.add(i + 1 , temp_high);
-        arr.remove(temp_high);
-        arr.add(high , temp_i);
+        Band temp = arr[i+1];
+        arr[i+1] = arr[high];
+        arr[high] = temp;
 
         return i + 1;
     }
 
     //    low  --> Starting index,
     //    high  --> Ending index
-    void quickSort(BandsArrayList<Band> arr, int low, int high, Comparator<Band> comparator) {
+    void quickSort(Band[] arr, int low, int high, Comparator<Band> comparator) {
         if (low < high) {
             int pi = partition(arr, low, high, comparator);
 

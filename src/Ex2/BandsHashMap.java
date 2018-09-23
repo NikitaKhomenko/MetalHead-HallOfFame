@@ -1,441 +1,234 @@
 package Ex2;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collection;
-import java.util.Iterator;
 
-public class BandsHashMap<K_String, V_Band>  implements Map<K_String, V_Band>
-{
-    private BandEntry[] table;
+
+public class BandsHashMap implements Map<String,Band> {
+    private static int DEFAULT_INITIAL_CAPACITY = 4;
+    private static int MAXIMUM_CAPACITY = 1<<30;
+    private static float DEFAULT_MAXIMUM_LOAD_FACTOR = 0.75f;
     private int size;
-    private static final int DEFAULT_INITIAL_CAPACITY = 1 << 4;
-    private double threshold;
+    private int capacity;
+    private float thresholdLoadFactor;
+    private BandEntry[] table;
 
-    // package private
-    BandsHashMap() {
-        if (DEFAULT_INITIAL_CAPACITY <= 0)
-            throw new IllegalArgumentException ("Illegal capacity: " + DEFAULT_INITIAL_CAPACITY);
-        table = new BandEntry[DEFAULT_INITIAL_CAPACITY];
-        size = 0;
-        setThreshold(DEFAULT_INITIAL_CAPACITY);
+
+    /**constructors*/
+    public BandsHashMap() {
+        this(DEFAULT_INITIAL_CAPACITY,DEFAULT_MAXIMUM_LOAD_FACTOR);
     }
 
-    private void setThreshold(int capacity) {
-        this.threshold = capacity*0.75;
+    public BandsHashMap(int capacity) {
+        this(capacity,DEFAULT_MAXIMUM_LOAD_FACTOR);
     }
 
-    public BandsHashMap(Map<? extends K_String, ? extends V_Band> m) {
-        throw new UnsupportedOperationException();
-    }
-
-    public int size() {
-        return size;
-    }
-
-    public boolean isEmpty() {
-        return size == 0;
-    }
-
-    private void ensureCapacity() {
-        if (threshold == size) {
-            table = resize();
+    public BandsHashMap(int capacity, float loadFactor) {
+        if (capacity > MAXIMUM_CAPACITY) {
+            this.capacity = MAXIMUM_CAPACITY;
         }
+        else {
+            this.capacity = trimToPowerOf2(capacity);
+        }
+        this.thresholdLoadFactor = loadFactor;
+        this.size =0;
+        table = new BandEntry[this.capacity];
     }
 
-    private BandEntry<K_String,V_Band>[] resize() {
-        BandEntry<K_String,V_Band>[] oldTab = table;
-        int oldCap = (oldTab == null) ? 0 : oldTab.length;
-        int newCap = oldCap*2;
-        setThreshold(newCap);
-
-        @SuppressWarnings({"rawtypes","unchecked"})
-        BandEntry<K_String,V_Band>[] newTab = (BandEntry<K_String,V_Band>[])new BandEntry[newCap];
-        if (oldTab != null) {
-            for (int j = 0; j < oldCap; ++j) {
-                BandEntry<K_String,V_Band> e;
-                if ((e = oldTab[j]) != null) {
-                    oldTab[j] = null;
-                    if (e.next == null)
-                        newTab[e.hash & (newCap - 1)] = e;
-                    else { // preserve order
-                        BandEntry<K_String,V_Band> loHead = null, loTail = null;
-                        BandEntry<K_String,V_Band> hiHead = null, hiTail = null;
-                        BandEntry<K_String,V_Band> next;
-                        do {
-                            next = e.next;
-                            if ((e.hash & oldCap) == 0) {
-                                if (loTail == null)
-                                    loHead = e;
-                                else
-                                    loTail.next = e;
-                                loTail = e;
-                            }
-                            else {
-                                if (hiTail == null)
-                                    hiHead = e;
-                                else
-                                    hiTail.next = e;
-                                hiTail = e;
-                            }
-                        } while ((e = next) != null);
-                        if (loTail != null) {
-                            loTail.next = null;
-                            newTab[j] = loHead;
-                        }
-                        if (hiTail != null) {
-                            hiTail.next = null;
-                            newTab[j + oldCap] = hiHead;
-                        }
-                    }
+    /* remove all entries from map*/
+    @Override
+    public void clear() {
+        size =0;
+        removeEntries();
+    }
+    /* return true if the key exists*/
+    @Override
+    public boolean containsKey(Object key) {
+        int index = hash(key.hashCode());
+        if (table[index] != null && table[index].getKey().equals(key)) {
+            return true;
+        }
+        return false;
+    }
+    /* return true if the value exists*/
+    @Override
+    public boolean containsValue(Object value) {
+        for (int i =0; i < capacity; i ++) {
+            if (table[i] != null) {
+                if (table[i].getValue().equals(value)) {
+                    return true;
                 }
             }
         }
-        return newTab;
-    }
-
-    public V_Band get(Object key) {
-        int hash = key == null ? 0 : key.hashCode();
-        int index = key == null ? 0 : hash % table.length;
-
-        // search for the specified key
-        for (BandEntry<K_String, V_Band> e = table[index]; e != null; e = e.next) {
-            if (hash == e.hash && (key == e.key ||
-                    (key != null && key.equals(e.key)))) {
-                return e.value;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Returns true if this map contains a mapping for the
-     * specified key.
-     */
-    public boolean containsKey(Object key) {
-        int hash = key == null ? 0 : key.hashCode();
-        int index = key == null ? 0 : hash % table.length;
-
-        // search for the specified key at the hashed index
-        for (BandEntry<K_String, V_Band> e = table[index]; e != null; e = e.next)
-            if (hash == e.hash && (key == e.key ||
-                    (key != null && key.equals(e.key))))
-                return true;
         return false;
     }
 
-    /**
-     * Returns true if this map maps one or more keys to the
-     * specified value.
-     */
-    public boolean containsValue(Object value) {
-        // search for the specified value in the whole map
-        for (BandEntry aTable : table)
-            for (BandEntry<K_String, V_Band> e = aTable; e != null; e = e.next)
-                if (value == e.value ||
-                        (value != null && value.equals(e.value)))
-                    return true;
-        return false;
-    }
-
-    /**
-     * Associates the specified value with the specified key in this map.
-     * If the map previously contained a mapping for the key, the old
-     * value is replaced.
-     */
-    public V_Band put(K_String key, V_Band value) {
-        int hash = key == null ? 0 : key.hashCode();
-        int index = key == null ? 0 : hash % table.length;
-
-        // check if the key is already contained: update the value
-        for (BandEntry<K_String, V_Band> e = table[index]; e != null; e = e.next) {
-            if (hash == e.hash && (key == e.key || (key != null && key.equals(e.key)))) {
-                V_Band oldValue = e.value;
-                e.value = value;
-                return oldValue;
+    @Override
+    public Set<Entry<String, Band>> entrySet() { /**return set of the entries(BandEntries) in the map*/
+        Set<Entry<String,Band>> set = new HashSet<>();
+        for (int i =0; i < capacity; i ++) {
+            if (table[i] != null) {
+                set.add(table[i]);
             }
         }
+        return set;
+    }
 
-        // insert the new mapping at the beginning of the list
-        ensureCapacity();
-        BandEntry<K_String, V_Band> e = new BandEntry(hash, key, value, table[index]);
-        table[index] = e;
-        size++;
+    @Override
+    public Band get(Object key) { /**returning an element by specified key*/
+        if (key != null) {
+            int index = hash(((String)key).hashCode());
+            if (table[index] != null) {
+                return table[index].getValue();
+            }
+        }
         return null;
     }
 
-    /**
-     * Copies all of the mappings from the specified map to this map.
-     */
-    public void putAll(Map<? extends K_String, ? extends V_Band> m) {
-        if (m.size() == 0)
-            return;
-
-        for (Iterator<? extends Map.Entry<? extends K_String, ? extends V_Band>> i =
-             m.entrySet().iterator(); i.hasNext(); ) {
-            Map.Entry<? extends K_String, ? extends V_Band> e = i.next();
-            put(e.getKey(), e.getValue());
-        }
+    @Override
+    public boolean isEmpty() { /**returning if the map contains values or not*/
+        return size ==0;
     }
 
-    /**
-     * Removes the mapping for the specified key from this map if present.
-     * Returns null if the BandsHashMap contains no mapping for this key.
-     */
-    public V_Band remove(Object key) {
-        int hash = key == null ? 0 : key.hashCode();
-        int index = key == null ? 0 : hash % table.length;
+    @Override
+    public Set<String> keySet() { /** returning a set of the keys in this map*/
+        Set<String> set = new HashSet<>();
+        for (Entry<String, Band> entry : entrySet()) {
+            set.add(entry.getKey());
+        }
+        return set;
+    }
 
-        // search for the specified key
-        BandEntry<K_String, V_Band> p = table[index];
-        for (BandEntry<K_String, V_Band> e = table[index]; e != null; e = e.next) {
-            if (hash == e.hash && (key == e.key ||
-                    (key != null && key.equals(e.key)))) {
-                if (p == e)
-                    table[index] = e.next;
-                else
-                    p.next = e.next;
-                size--;
-                return e.value;
-            }
-            p = e;
+    @Override
+    public Band put(String key, Band value) { /** adding an element to the map by specified key*/
+        int index = hash(key.hashCode());
+        if (get(key) != null && table[index].getKey().equals(key)) { // if the key already exists
+            Band oldValue = table[index].getValue();
+            table[index].setValue(value);
+            size ++;
+            return oldValue;
         }
 
+        if (size +1 >= capacity*thresholdLoadFactor || get(key) != null) { //if need rehash
+            if (capacity == MAXIMUM_CAPACITY) {
+                throw new RuntimeException("Exceeding maximum capacity");
+            }
+            rehash();
+
+        }
+        int newIndex = hash(key.hashCode());
+        table[newIndex] = new BandEntry(key, value);
+        size ++;
         return null;
     }
 
-    /**
-     * Removes all of the mappings from this map.
-     */
-    public void clear() {
-        for (int index = 0; index < table.length; index++)
-            table[index] = null;
-        size = 0;
-    }
+    @Override
+    public void putAll(Map<? extends String, ? extends Band> m) { /** adding a full map to this map*/
+        Set<?> set = m.entrySet();
 
-    static class BandEntry<K_String, V_Band> implements Map.Entry<K_String, V_Band> {
-        final int hash;
-        final K_String key;
-        V_Band value;
-        BandEntry<K_String, V_Band> next;
-
-        BandEntry(int h, K_String k, V_Band v, BandEntry<K_String, V_Band> n) {
-            hash = h;
-            key = k;
-            value = v;
-            next = n;
+        for(Object entry : set) {
+            put(((BandEntry)entry).getKey() , ((BandEntry)entry).getValue());
         }
 
-        public K_String getKey() {
+    }
+
+    @Override
+    public Band remove(Object key) {/** removing element by specified key*/
+        if (get(key) == null) {
+            return null;
+        }
+        int index = hash(key.hashCode());
+        Band oldValue = table[index].getValue();
+        table[index] = null;
+        size --;
+        return oldValue;
+    }
+
+    @Override
+    public int size() {/** retutn size of the map*/
+        return size;
+    }
+
+    @Override
+    public Collection<Band> values() { /** return a set consisting of the values in the map*/
+
+        List<Band> list= new LinkedList<>();
+
+        for (Entry<String, Band> entry : entrySet()) {
+            list.add(entry.getValue());
+        }
+
+        return list;
+    }
+
+    private int trimToPowerOf2(int initialCapacity) {/**trims the capacity to power of 2*/
+        int capacity =1;
+        while(capacity < initialCapacity) {
+            capacity <<= 1;
+        }
+        return capacity;
+    }
+
+    private void rehash() {/** the rehash function*/
+        Set<Entry<String, Band>> set = entrySet();
+        capacity <<= 1;
+        table = new BandEntry[capacity];
+        size =0;
+        for (Entry<String, Band> entry : set) {
+            put(entry.getKey(), entry.getValue());
+        }
+
+    }
+
+    private int hash(int hashCode) {
+        return supplyHashCode(hashCode) & (capacity -1);
+    }
+
+    private int supplyHashCode(int h) {
+        h ^= (h >>> 20) ^ (h >>> 12);
+        return h ^ (h >>> 7) ^ (h >>> 4);
+    }
+
+    private void removeEntries() {
+        for (int i =0; i < capacity; i ++) {
+            if (table[i] != null ) {
+                table[i] = null;
+            }
+        }
+    }
+
+
+    /** the entries of the map <String, Band> */
+    public static class BandEntry implements Entry<String,Band>{
+
+        private final String key;
+        private Band value;
+
+        public BandEntry(String key, Band value) {
+            this.key = key;
+            setValue(value);
+        }
+        @Override
+        public String getKey() {
             return key;
         }
-
-        public V_Band getValue() {
+        @Override
+        public Band getValue() {
             return value;
         }
-
-        public V_Band setValue(V_Band v) {
-            V_Band val = value;
-            value = v;
-            return val;
+        @Override
+        public Band setValue(Band value) {
+            Band oldValue = getValue();
+            this.value = value;
+            return oldValue;
         }
 
-        public boolean equals(Object o) {
-            // same object reference
-            if (o == this)
-                return true;
-
-            // check instance type (Map.BandEntry)
-            if (!(o instanceof Map.Entry))
-                return false;
-
-            // check k,v pair
-            K_String k1 = getKey();
-            V_Band v1 = getValue();
-            K_String k2 = ((BandEntry<K_String, V_Band>)o).getKey();
-            V_Band v2 = ((BandEntry<K_String, V_Band>)o).getValue();
-            if ((k1 == k2 || (k1 != null && k1.equals(k2))) &&
-                    (v1 == v2 || (v1 != null && v1.equals(v2))))
-                return true;
-            return false;
-        }
-
-        public int hashCode() {
-            return (key == null ? 0 : key.hashCode()) ^
-                    (value == null ? 0 : value.hashCode());
-        }
     }
 
-    // Views
 
-    /**
-     * Returns a Set view of the keys contained in this map.
-     */
-    public Set<K_String> keySet() {
-        return new KeySet();
-    }
-
-    private class KeySet extends java.util.AbstractSet<K_String> {
-        public int size() {
-            return size;
-        }
-
-        public Iterator<K_String> iterator() {
-            return new KeySetIterator();
-        }
-    }
-
-    private class KeySetIterator extends HashIterator<K_String> {
-        public K_String next() {
-            return nextEntry().getKey();
-        }
-    }
-
-    /**
-     * Returns a Collection view of the values contained in this map.
-     */
-
-    public Collection<V_Band> values() {
-        return new Values();
-    }
-
-    private class Values extends java.util.AbstractCollection<V_Band> {
-        public int size() {
-            return size;
-        }
-
-        public Iterator<V_Band> iterator() {
-            return new ValuesIterator();
-        }
-    }
-
-    private class ValuesIterator extends HashIterator<V_Band> {
-        public V_Band next() {
-            return nextEntry().getValue();
-        }
-    }
-
-    /**
-     * Returns a Set view of the mappings contained in this map.
-     */
-    public Set<Map.Entry<K_String, V_Band>> entrySet() {
-        return new EntrySet();
-    }
-
-    private class EntrySet extends java.util.AbstractSet<Map.Entry<K_String, V_Band>> {
-        public int size() {
-            return size;
-        }
-
-        public Iterator<Map.Entry<K_String, V_Band>> iterator() {
-            return new EntrySetIterator();
-        }
-    }
-
-    private class EntrySetIterator extends HashIterator<Map.Entry<K_String, V_Band>> {
-        public Map.Entry<K_String, V_Band> next() {
-            return nextEntry();
-        }
-    }
-
-    /**
-     * Provides a skeletal implementation of a hash iterator over the
-     * elements in this hash map.
-     */
-    private abstract class HashIterator<T> implements Iterator<T> {
-        private int index;
-        private BandEntry<K_String, V_Band> currEntry;
-        private BandEntry<K_String, V_Band> nextEntry;
-
-        // initialize the iterator to the first entry.
-        public HashIterator() {
-            index = 0;
-            currEntry = null;
-            nextEntry = null;
-            for ( ; index < table.length; index++)
-                if (table[index] != null)
-                    nextEntry = table[index];
-        }
-
-        public boolean hasNext() {
-            return nextEntry != null;
-        }
-
-        // the next() method has to be implemeted for the specific type
-        // T, by extending the abstract class, and making use of the
-        // more generic nextEntry() method here below.
-        public abstract T next();
-
-        public BandEntry<K_String, V_Band> nextEntry() {
-            currEntry = nextEntry;
-            if (nextEntry.next != null) {
-                nextEntry = nextEntry.next;
-            } else {
-                nextEntry = null;
-                for ( ; index < table.length; index++)
-                    if (table[index] != null)
-                        nextEntry = table[index];
-            }
-
-            return currEntry;
-        }
-
-        // since this hash map uses a sigle linked list to record its
-        // mappings, it's not easy to remove the BandEntry without breaking
-        // the list. the simpler solution is to call the remove()
-        // method for the specified key
-        public void remove() {
-            BandsHashMap.this.remove(nextEntry.getKey());
-        }
-    }
-
-    // Comparison and hashing
-
-    /**
-     * Compares the specified object with this map for equality.  Returns
-     * true if the given object is also a map and the two maps
-     * represent the same mappings.
-     */
-    public boolean equals(Object o) {
-        // trivial check
-        if (o == this)
-            return true;
-
-        // check that it's an instance of Map
-        if (!(o instanceof Map))
-            return false;
-        Map<K_String, V_Band> m = (Map<K_String, V_Band>)o;
-
-        // check that the size is the same */
-        if (m.size() != size)
-            return false;
-        // and that each element is contained in the map */
-        Set<Map.Entry<K_String, V_Band>> s = entrySet();
-        for (Iterator<Map.Entry<K_String, V_Band>> i = s.iterator(); i.hasNext(); ) {
-            Map.Entry<K_String, V_Band> e = i.next();
-            K_String key = e.getKey();
-            V_Band value = e.getValue();
-
-            if (!m.containsKey(key))
-                return false;
-            if (!value.equals(m.get(key)))
-                return false;
-        }
-        return true;
-    }
-
-    /**
-     * Returns the hash code value for this map.  The hash code of a map is
-     * defined to be the sum of the hash codes of each entry in the map's
-     * entrySet() view.
-     */
-    public int hashCode() {
-        int hash = 0;
-        Set<Map.Entry<K_String, V_Band>> s = entrySet();
-        for (Iterator<Map.Entry<K_String, V_Band>> i = s.iterator(); i.hasNext(); )
-            hash += i.next().hashCode();
-
-        return hash;
-    }
 
 }

@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.util.Comparator;
 
 public interface BandsDataController {
-    Band previous(boolean calledFromUndo);
+    Band previous();
 
-    Band next(boolean calledFromUndo);
+    Band next();
 
     void sort(Comparator<Band> comparator);
 

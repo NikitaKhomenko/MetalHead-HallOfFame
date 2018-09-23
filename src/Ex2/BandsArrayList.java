@@ -76,6 +76,14 @@ public class BandsArrayList<Band> implements List<Band>{
         return true;
     }
 
+    public boolean addToSubList(Band element) {
+        if(element == null)
+            return false;
+
+        arr[size++] = element;
+        return true;
+    }
+
     @Override
     public void add(int index, Band element) {
         rangeCheckForAdd(index);
@@ -248,7 +256,7 @@ public class BandsArrayList<Band> implements List<Band>{
 
         @Override
         public void remove() {
-            System.arraycopy(arr, index, arr, index - 1, size - index);
+            System.arraycopy(arr, index + 1, arr, index, size - (index+1));
             size--;
         }
 
@@ -348,15 +356,15 @@ public class BandsArrayList<Band> implements List<Band>{
     }
 
     @Override
-    public List<Band> subList(int fromIndex, int toIndex) {
+    public BandsArrayList<Band> subList(int fromIndex, int toIndex) {
+        arr = trimToSize(arr, toIndex+1-fromIndex, arr.length);
         BandsArrayList<Band> subList = new BandsArrayList<>(arr);
-
         subListRangeCheck(fromIndex, toIndex, size);
         if (fromIndex == toIndex)
             return null;
-
-        for (int i = fromIndex; i < toIndex; i++) {
-            subList.add(arr[i]);
+        subList.size = 0;    // we count new size from 0
+        for (int i = fromIndex; i <= toIndex; i++) {
+            subList.addToSubList(arr[i]);
         }
 
         return subList;
@@ -372,6 +380,18 @@ public class BandsArrayList<Band> implements List<Band>{
         if (fromIndex > toIndex)
             throw new IllegalArgumentException("fromIndex(" + fromIndex +
                     ") > toIndex(" + toIndex + ")");
+    }
+
+    public Band[] trimToSize(Band[] arr, int newCapacity, int arrSize) {
+        if (newCapacity < arrSize) {
+            Band[] old = arr;
+            Band[] newArr = (Band[]) new Object[newCapacity];
+            for (int i = 0; i < newCapacity; i++) {
+                newArr[i] = old[i];
+            }
+            return newArr;
+        }
+        return null;
     }
 
     @Override

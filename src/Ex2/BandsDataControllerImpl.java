@@ -7,15 +7,14 @@ import java.util.Stack;
 public class BandsDataControllerImpl implements  BandsDataController {
 
     private static BandsDataControllerImpl instance;
-    // BandsListRevert ; BandsMapRevert for revert function.
-    // in case user already saved new list to file we need and extra list to revert.
-    // extra map just so we won't have to remap.
+    // BandsListRevert for revert function.
+    // in case user already saved new list to file we need an extra list to revert.
     private BandsArrayList<Band> BandsList, BandsListRevert;
-    private BandsHashMap<String, Band> BandsMap, BandsMapRevert;
+    private BandsHashMap BandsMap;
     private BandsArrayList<Band>.BandsListIterator BListIterator;
     private static final BandDataAccessObject BandDAO = BandDataAccessObject.getInstance();
 
-    private Stack<BandsDataCommand> commands;
+    private Stack<BandsDataCommand> commands = new Stack<>();
 
 
     private BandsDataControllerImpl()
@@ -34,14 +33,12 @@ public class BandsDataControllerImpl implements  BandsDataController {
     }
 
     private void setBandsList() throws IOException, ClassNotFoundException {
-        BandsList = BandsListRevert = BandDAO.readAllBands();
-        Band[] bands = BandsList.toArray();
-        quickSort(bands, 0, bands.length-1, serialNumComparator);
-        BandsList = BandsListRevert = new BandsArrayList<>(bands);
+        BandsList = BandDAO.readAllBands();
+        BandsListRevert = BandDAO.readAllBands();
     }
 
     private void setBandsMap() throws IOException, ClassNotFoundException {
-        BandsMap = BandsMapRevert = BandDAO.getBandsMappedByName();
+        BandsMap = BandDAO.getBandsMappedByName();
     }
 
     private void setBandsIterator() {
@@ -56,19 +53,19 @@ public class BandsDataControllerImpl implements  BandsDataController {
     }
 
     @Override
-    public Band previous(boolean calledFromUndo) {
+    public Band previous() {
         Previous previousOp = new Previous();
-        if (!calledFromUndo)
-            previousOp.execute();
-        return BListIterator.previous();
+        previousOp.execute();
+        commands.push(previousOp);
+        return previousOp.getBand();
     }
 
     @Override
-    public Band next(boolean calledFromUndo) {
+    public Band next() {
         Next nextOp = new Next();
-        if (!calledFromUndo)
-            nextOp.execute();
-        return BListIterator.next();
+        nextOp.execute();
+        commands.push(nextOp);
+        return nextOp.getBand();
     }
 
     @Override
@@ -94,13 +91,16 @@ public class BandsDataControllerImpl implements  BandsDataController {
 
     @Override
     public void undo() {
-        commands.pop().undo();
+        if (!commands.empty())
+            commands.pop().undo();
     }
 
     @Override
     public void revert() {
-        BandsList = BandsListRevert;
-        BandsMap = BandsMapRevert;
+        BandsList = new BandsArrayList<Band>(BandsListRevert.toArray());
+        BandsMap = new BandsHashMap();
+        for (int i = 0; i < BandsList.size(); i++)
+            BandsMap.put(BandsList.get(i).getName(), BandsList.get(i));
         setBandsIterator();
     }
 
@@ -120,48 +120,54 @@ public class BandsDataControllerImpl implements  BandsDataController {
     class Sort implements BandsDataCommand {
         private Comparator<Band> comparator;
 
-        private Sort(Comparator<Band> comparator) {
+        public Sort(Comparator<Band> comparator) {
             this.comparator = comparator;
         }
 
         @Override
         public void execute() {
-            Band[] bands = BandsList.toArray();
-            quickSort(bands, 0, bands.length-1, comparator);
-            BandsList = new BandsArrayList<>(bands);
+            BandsList.sort(comparator);
         }
 
         @Override
         public void undo() {
-            Band[] bands = BandsList.toArray();
-            quickSort(bands, 0, bands.length-1, serialNumComparator);
-            BandsList = new BandsArrayList<>(bands);
+            BandsList.sort(getSerialNumComparator());
         }
     }
 
     class Next implements BandsDataCommand {
+        private Band band;
 
         @Override
         public void execute() {
-            commands.push(Next.this);
+            band = BListIterator.next();
+        }
+
+        public Band getBand() {
+            return band;
         }
 
         @Override
         public void undo() {
-            previous(true);
+            band = BListIterator.previous();
         }
     }
 
     class Previous implements BandsDataCommand {
+        private Band band;
 
         @Override
         public void execute() {
-            commands.push(Previous.this);
+            band = BListIterator.previous();
+        }
+
+        public Band getBand() {
+            return band;
         }
 
         @Override
         public void undo() {
-            next(true);
+            band = BListIterator.next();
         }
     }
 
@@ -213,97 +219,61 @@ public class BandsDataControllerImpl implements  BandsDataController {
     /**
      * Comparator to sort bands list in order of name
      */
-
-    public static Comparator<Band> nameComparator = new Comparator<Band>() {
+    class nameComparator implements Comparator<Band> {
 
         @Override
         public int compare(Band b1, Band b2) {
-            return (b1.getName().compareTo(b2.getName()));
+            return b1.getName().compareToIgnoreCase(b2.getName());
         }
-    };
+    }
 
     /**
      * Comparator to sort bands list in order of origin
      */
-    public static Comparator<Band> originComparator = new Comparator<Band>() {
+    class fansComparator implements Comparator<Band> {
 
         @Override
         public int compare(Band b1, Band b2) {
-            return (b1.getOrigin().compareTo(b2.getOrigin()));
+            return b2.getNumOfFans() - b1.getNumOfFans();
         }
-    };
+    }
 
     /**
      * Comparator to sort bands list in order of number of fans
      */
-    public static Comparator<Band> fansComparator = new Comparator<Band>() {
+    class originComparator implements Comparator<Band> {
 
         @Override
         public int compare(Band b1, Band b2) {
-            return b1.getNumOfFans() - b2.getNumOfFans();
+            return b1.getOrigin().compareToIgnoreCase(b2.getOrigin());
         }
-    };
+    }
 
     /**
      * Comparator to sort bands list in order of serial number
      */
-    public static Comparator<Band> serialNumComparator = new Comparator<Band>() {
+    class serialNumComparator implements Comparator<Band> {
 
         @Override
         public int compare(Band b1, Band b2) {
-            return b1.getSerialNumber() - b2.getSerialNumber() ;
+            return b1.getSerialNumber() - b2.getSerialNumber();
         }
-    };
-
-    public Comparator<Band> getNameComparator(){
-        return nameComparator;
     }
 
-    public Comparator<Band> getOriginComparator(){
-        return originComparator;
+    public Comparator<Band> getNameComparator() {
+        return new nameComparator();
     }
 
-    public Comparator<Band> getFansComparator(){
-        return fansComparator;
+    public Comparator<Band> getOriginComparator() {
+        return new originComparator();
     }
 
-    public Comparator<Band> getSerialNumComparator(){
-        return serialNumComparator;
+    public Comparator<Band> getFansComparator() {
+        return new fansComparator();
     }
 
-    ///////////////////////////*************  Helper functions  **************///////////////////////////
-
-    int partition(Band[] arr, int low, int high, Comparator<Band> comparator) {
-        Band pivot = arr[high];
-        int i = (low-1); // index of smaller element
-        for (int j = low; j < high ; j++) {
-
-            if (comparator.compare(arr[j], pivot) <= 0) {
-                i++;
-
-                // swap arr[i] and arr[j]
-
-                Band temp = arr[i];
-                arr[i] = arr[j];
-                arr[j] = temp;
-            }
-        }
-        // swap arr[i+1] and arr[high] (or pivot)
-        Band temp = arr[i+1];
-        arr[i+1] = arr[high];
-        arr[high] = temp;
-
-        return i + 1;
-    }
-
-    //    low  --> Starting index,
-    //    high  --> Ending index
-    void quickSort(Band[] arr, int low, int high, Comparator<Band> comparator) {
-        if (low < high) {
-            int pi = partition(arr, low, high, comparator);
-
-            quickSort(arr, low, pi - 1, comparator);
-            quickSort(arr, pi + 1, high, comparator);
-        }
+    public Comparator<Band> getSerialNumComparator() {
+        return new serialNumComparator();
     }
 }
+

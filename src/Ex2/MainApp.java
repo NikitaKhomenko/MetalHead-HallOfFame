@@ -7,8 +7,8 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
-    private final int width = 1070;
-    private final int height = 700;
+    private final int WIDTH = 1070;
+    private final int HEIGHT = 700;
 
     public static void main(String[] args) {
         launch(args);
@@ -20,8 +20,12 @@ public class MainApp extends Application {
         MainWindow mainApp = new MainWindow();
         mainStage.setTitle("Hall Of Fame");
         mainStage.setResizable(false);
-        mainStage.setScene(new Scene(mainApp, width, height));
+        Scene scene = new Scene(mainApp, WIDTH, HEIGHT);
+        mainStage.setScene(scene);
         mainStage.show();
+        scene.getRoot().requestFocus();
     }
 
 }
+
+

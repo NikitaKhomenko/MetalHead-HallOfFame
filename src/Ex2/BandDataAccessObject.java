@@ -1,5 +1,7 @@
 package Ex2;
 
+import javafx.scene.control.Alert;
+
 import java.io.*;
 import java.util.Collections;
 
@@ -30,6 +32,8 @@ public class BandDataAccessObject implements BandDataAccess {
         } catch (IOException e) {
             System.out.println("Error reading saving data.");
             e.printStackTrace(System.out);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            setAlert(alert);
 
         } finally {
                 input.close();
@@ -40,14 +44,14 @@ public class BandDataAccessObject implements BandDataAccess {
 
     @Override
     public BandsHashMap getBandsMappedByName() throws IOException, ClassNotFoundException {
-        BandsHashMap<String,Band> BandsMap = new BandsHashMap<>();
+        BandsHashMap BandsMap = new BandsHashMap();
         try {
             Band[] bands = readBandsArrayFromFile();
             for (int i = 0; i < bands.length; i++)
                 BandsMap.put(bands[i].getName(), bands[i]);
 
         } catch (IOException e) {
-            System.out.println("Error reading saving data.");
+            System.out.println("Error reading data.");
             e.printStackTrace(System.out);
 
         } finally {
@@ -58,26 +62,25 @@ public class BandDataAccessObject implements BandDataAccess {
 
     private Band[] readBandsArrayFromFile() throws IOException, ClassNotFoundException {
         input = new ObjectInputStream(new FileInputStream(fileName));
-        FileInputStream inputFile = new FileInputStream(fileName);
-        input = new ObjectInputStream(inputFile);
         Object[] bandscheck = (Object[]) input.readObject();
         return (Band[]) bandscheck;
     }
 
     @Override
     public void saveBands(Band[] bands) throws IOException {
-        try {
-            output = new ObjectOutputStream(new FileOutputStream(fileName));
-            for(int i = 0; i < bands.length; i++)
-                output.writeObject(bands[i]);
-
-        } catch (IOException e) {
-            System.out.println("Error reading saving data.");
-            e.printStackTrace(System.out);
-
-        } finally {
-                output.close();
-        }
+        output = new ObjectOutputStream(new FileOutputStream(fileName));
+        output.writeObject(bands);
     }
+
+    ///////////////// ********* Alert Box ********* /////////////////
+
+
+    private void setAlert (Alert alert) {
+        alert.setTitle("Error");
+        alert.setHeaderText("I/O Error");
+        alert.setContentText("Data file is missing or corrupt.");
+        alert.showAndWait();
+    }
+
 
 }
